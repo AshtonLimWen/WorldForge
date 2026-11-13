@@ -40,6 +40,21 @@
         <button id="new-world">New World</button>
       </div>
 
+      <div id="overlay-panel" class="hidden">
+        <div class="panel-title">Map Overlay</div>
+        <select id="overlay-select">
+          <option value="terrain">Terrain</option>
+          <option value="biome">Biome</option>
+          <option value="elevation">Elevation</option>
+          <option value="temperature">Temperature</option>
+          <option value="rainfall">Rainfall</option>
+          <option value="humidity">Humidity</option>
+          <option value="soil">Soil Fertility</option>
+          <option value="vegetation">Vegetation</option>
+          <option value="water">Water</option>
+        </select>
+      </div>
+
       <div id="loading" class="hidden"><div class="spinner"></div><div>Generating world…</div></div>
     </div>
     <script type="module" src="/src/main.js"></script>

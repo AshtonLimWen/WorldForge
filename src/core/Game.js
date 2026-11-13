@@ -3,6 +3,7 @@ import { Clock } from "./Clock.js";
 import { Camera } from "../rendering/Camera.js";
 import { Renderer } from "../rendering/Renderer.js";
 import { WorldGenerator } from "../generation/WorldGenerator.js";
+import { Environment } from "../environment/Environment.js";
 
 export class Game {
   constructor(canvas, { onStatus } = {}) {
@@ -11,6 +12,7 @@ export class Game {
     this.renderer = new Renderer(canvas);
     this.clock = new Clock();
     this.world = null;
+    this.environment = null;
     this.onStatus = onStatus || (() => {});
     this.mouseWorld = { x: 0, y: 0, inBounds: false };
 
@@ -23,13 +25,11 @@ export class Game {
     this._bindResize();
   }
 
-  // ---------- Public API ----------
-
   generateWorld({ size, seed }) {
     this.loop.stop();
     this.world = new WorldGenerator({ size, seed }).generate();
+    this.environment = new Environment(this.world);
 
-    // Resize before camera math so minZoom uses correct canvas dims
     this.renderer.resize();
     this.renderer.setWorld(this.world, this.camera);
     this.camera.setWorld(this.world.size);
@@ -43,26 +43,23 @@ export class Game {
     this.loop.stop();
   }
 
-  // ---------- Simulation ----------
+  setOverlay(mode) {
+    this.renderer.setOverlay(mode);
+  }
 
   _update(dt) {
     this.clock.tickSim(dt);
-    // No simulation systems yet (Chunk 2+).
+    if (this.environment) this.environment.update(dt);
   }
-
-  // ---------- Rendering ----------
 
   _render(dt) {
     this.clock.tickReal(dt);
     this.renderer.render();
   }
 
-  // ---------- Input ----------
-
   _bindInput() {
     const canvas = this.canvas;
 
-    // ----- Pan (mouse drag) -----
     let dragging = false;
     let lastCx = 0, lastCy = 0;
 
@@ -75,7 +72,6 @@ export class Game {
     });
 
     window.addEventListener("mousemove", (e) => {
-      // Update hover world coordinates for HUD
       const rect = canvas.getBoundingClientRect();
       const sx = (e.clientX - rect.left) * this.renderer.dpr;
       const sy = (e.clientY - rect.top)  * this.renderer.dpr;
@@ -97,7 +93,6 @@ export class Game {
     window.addEventListener("mouseup", () => { dragging = false; });
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // ----- Zoom (wheel) -----
     canvas.addEventListener("wheel", (e) => {
       if (!this.world) return;
       e.preventDefault();
@@ -108,7 +103,6 @@ export class Game {
       this.camera.zoomAtScreen(sx, sy, factor);
     }, { passive: false });
 
-    // ----- Keyboard -----
     window.addEventListener("keydown", (e) => {
       if (!this.world) return;
       const stepCss = 60;
@@ -130,8 +124,7 @@ export class Game {
     window.addEventListener("resize", () => {
       this.renderer.resize();
       if (this.world) {
-        const wasAtMin =
-          Math.abs(this.camera.zoom - this.camera.minZoom) < 0.02;
+        const wasAtMin = Math.abs(this.camera.zoom - this.camera.minZoom) < 0.02;
         this.camera.setWorld(this.world.size);
         if (wasAtMin) this.camera.fitWorld(this.world.size);
       }

@@ -6,9 +6,14 @@ export class BiomeGenerator {
   }
 
   generate() {
-    const { tileCount, elevation, temperature, moisture, terrain } = this.world;
+    const { tileCount, elevation, temperature, rainfall, isLake, terrain } = this.world;
     for (let i = 0; i < tileCount; i++) {
-      terrain[i] = classifyTerrain(elevation[i], temperature[i], moisture[i]);
+      terrain[i] = classifyTerrain(
+        elevation[i],
+        temperature[i],
+        rainfall[i],
+        isLake[i]
+      );
     }
   }
 }
