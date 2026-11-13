@@ -1,13 +1,47 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>worldforge</title>
+    <title>WorldForge</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="start-screen">
+        <div class="panel">
+          <h1>WorldForge</h1>
+          <p class="subtitle">A living civilization simulator</p>
+
+          <label class="field">
+            <span>World Size</span>
+            <select id="world-size">
+              <option value="100">100 × 100 (Tiny)</option>
+              <option value="200" selected>200 × 200 (Small)</option>
+              <option value="400">400 × 400 (Medium)</option>
+              <option value="600">600 × 600 (Large)</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Seed</span>
+            <input id="seed" type="text" placeholder="random" autocomplete="off" />
+          </label>
+
+          <button id="generate">Generate World</button>
+        </div>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div id="hud-info">—</div>
+        <div id="hud-coords">—</div>
+        <button id="new-world">New World</button>
+      </div>
+
+      <div id="loading" class="hidden"><div class="spinner"></div><div>Generating world…</div></div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

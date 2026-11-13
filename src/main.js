@@ -1,60 +1,74 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
+import "./style.css";
+import { Game } from "./core/Game.js";
+import { HUD } from "./ui/HUD.js";
 
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+const $ = (id) => document.getElementById(id);
 
-<div class="ticks"></div>
+const canvas      = $("game-canvas");
+const startScreen = $("start-screen");
+const hud         = $("hud");
+const loading     = $("loading");
+const sizeSelect  = $("world-size");
+const seedInput   = $("seed");
+const generateBtn = $("generate");
+const newWorldBtn = $("new-world");
+const infoEl      = $("hud-info");
+const coordsEl    = $("hud-coords");
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+const game = new Game(canvas);
+const hudController = new HUD(game, { infoEl, coordsEl });
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+function showStart() {
+  hudController.stop();
+  startScreen.classList.remove("hidden");
+  hud.classList.add("hidden");
+  loading.classList.add("hidden");
+  generateBtn.disabled = false;
+}
 
-setupCounter(document.querySelector('#counter'))
+function showGame() {
+  startScreen.classList.add("hidden");
+  hud.classList.remove("hidden");
+  loading.classList.add("hidden");
+  hudController.start();
+}
+
+async function generateWorld() {
+  const size = parseInt(sizeSelect.value, 10);
+  let seed = seedInput.value.trim();
+  if (!seed) {
+    seed = Math.random().toString(36).slice(2, 10);
+    seedInput.value = seed;
+  }
+
+  loading.classList.remove("hidden");
+  generateBtn.disabled = true;
+
+  // Yield a frame so the loading overlay paints before heavy generation
+  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
+  try {
+    game.generateWorld({ size, seed });
+    showGame();
+  } catch (err) {
+    console.error("World generation failed:", err);
+    loading.classList.add("hidden");
+    startScreen.classList.remove("hidden");
+    generateBtn.disabled = false;
+    alert("World generation failed. See the browser console.");
+  }
+}
+
+generateBtn.addEventListener("click", generateWorld);
+
+seedInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") generateWorld();
+});
+
+newWorldBtn.addEventListener("click", () => {
+  game.stop();
+  showStart();
+});
+
+// Initial state
+showStart();
