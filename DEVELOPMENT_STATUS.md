@@ -3,66 +3,68 @@
 ## Completed Chunks
 - **CHUNK 1 — Core Architecture, World Generation and Camera** ✅
 - **CHUNK 2 — Terrain, Climate and Environment** ✅
+- **CHUNK 3 — Resources and Distribution** ✅
 
 ## Current Chunk
-Chunk 2 complete pending incremental tuning in future chunks.
+Chunk 3 complete.
 
-## Completed Features (Chunks 1–2)
+## Completed Features (Chunks 1–3)
 
-### Architecture & Core
-- Modular ES-module architecture (core / utils / world / generation / environment / rendering / ui).
-- Deterministic seeded PRNG (Mulberry32) + FNV-1a string-seed hashing.
-- Fixed-timestep game loop (30 Hz sim, per-frame render) with dt clamp + update cap.
-- Clock tracking sim-time / real-time / FPS.
-- DPI-aware canvas + window resize handling.
+### Chunk 1
+- Modular ES-module architecture.
+- Deterministic seeded PRNG (Mulberry32) + FNV-1a hashing.
+- Fixed-timestep game loop (30 Hz sim, per-frame render).
+- Clock, DPI-aware canvas, resize handling.
+- Seeded elevation / temperature / moisture + radial falloff + domain warp.
+- Tile-based offscreen rendering with adaptive pixels-per-tile.
+- Camera: pan + zoom + keyboard controls.
+- Start screen (size selector + seed input) + HUD.
 
-### World Generation (Chunk 1 + 2)
-- Seeded value-noise + FBM utilities.
-- Elevation, base temperature, moisture generation with domain warp + radial falloff.
-- 17 terrain types including Boreal Forest, Wetland, Lake.
-- Terrain classification uses elevation, temperature, rainfall, and lake flag.
-- Deterministic end-to-end: same (size, seed) reproduces the same world.
+### Chunk 2
+- Rainfall (latitude belt × coastal factor × noise), humidity, 6 climate zones.
+- Priority-flood depression fill + D8 flow + accumulation.
+- Rivers (3 strength tiers) + lakes.
+- Soil fertility, soil moisture, vegetation density.
+- 17 terrain types incl. Boreal Forest, Wetland, Lake.
+- Seasonal cycle (4 seasons, 30 sim-sec each; year counter).
+- 9 map overlays (terrain, biome, elevation, temperature, rainfall, humidity, soil, vegetation, water).
 
-### Climate (Chunk 2)
-- Rainfall: latitude bands (equator wet, subtropics dry, mid-lat wet) × coastal proximity × regional noise × land moisture.
-- Humidity derived from rainfall + coastal proximity + altitude.
-- Six climate zones: Polar, Boreal, Temperate, Subtropical, Tropical, Arid.
-- Distance-to-ocean field cached on World for future systems.
+### Chunk 3
+- **Resource database:** 18 resources across 5 categories
+  (4 natural, 5 metallic, 3 energy, 4 agricultural, 2 aquatic).
+- Each resource carries id/key/name/category/color/distribution/
+  baseQuantity/regenRate/extractionRate/description/uses.
+- **Deterministic procedural generation** with per-resource noise seeds:
+  - Biome-based: wood (forest/jungle/boreal, scaled by vegetation),
+    sand (beach/desert), clay (wetland/near-river).
+  - Aquatic: freshwater (river/lake), fish (coast/shallow ocean/lake,
+    noise-gated).
+  - Agricultural: grain (fertile plain/grassland), fruits (fertile forest),
+    vegetables (fertile grassland/wetland), livestock (fertile
+    grassland/savanna/plains).
+  - Geological: stone / coal / iron / copper / tin / silver / gold
+    (hills & mountains, independent fbm thresholds); oil / gas
+    (plains/hills/shallow-sea, deeper noise).
+- **Efficient storage:** typed arrays per tile (`resourceType` Uint8,
+  `resourceQty` Float32, `resourceMaxQty` Float32) with
+  MAX_RESOURCES_PER_TILE = 6. Duplicate placement rejected.
+- **Extraction API:** `extractResource`, `getResourceQuantity`,
+  `getTileResources`, `getTileResourceTotal` in `resources/Extraction.js`.
+  Extraction adds the tile to `world.depletedTiles`.
+- **Regeneration system** (`ResourceSystem`): visits only flagged tiles
+  every 2 sim-seconds, refills regenerable resources (wood, fish,
+  freshwater, grain, fruit, vegetable, livestock) at their regen rates,
+  auto-clears flags when full.
+- **Overlays:** combined "Resources (All)" mode (quantity-weighted colour
+  blend) + 18 per-resource intensity overlays via `resource:<key>` mode.
+- **Tile Inspector** (right side panel): opens on click, shows
+  terrain, elevation, water state, base + seasonal temperature, rainfall,
+  humidity, soil fertility/moisture, vegetation and every resource with
+  current/max quantity and a progress bar.
+- HUD hover now shows the top 2 resources at the cursor.
+- Escape key clears tile selection.
 
-### Hydrology (Chunk 2)
-- Priority-flood depression fill (min-heap + epsilon).
-- D8 flow direction on filled DEM.
-- Flow accumulation via 16-bit counting-sort (O(n)).
-- Lakes = tiles with significant fill amount (> 0.002).
-- Rivers = tiles with accumulation above size-scaled thresholds; strength tiers 120/200/255.
-- Rivers rendered on top of terrain via per-tile overlay colour.
-
-### Soil & Vegetation (Chunk 2)
-- Soil fertility: base by terrain type + river proximity bonus + rainfall bonus − elevation / cold penalties.
-- Soil moisture: rainfall + humidity + river proximity − hot-climate evaporation.
-- Vegetation density: base by biome × rainfall × soil moisture − extreme-cold penalty.
-- River distance BFS (used for soil boost).
-
-### Seasons (Chunk 2)
-- Environment class advances season every 30 sim-seconds (4 seasons = 1 year).
-- Seasonal temperature offset: sin-wave of |latitude| with hemisphere sign flip.
-- Season / year surfaced on HUD; effective temperature available via `World.getEffectiveTemperature`.
-
-### Rendering (Chunk 1 + 2)
-- Offscreen world canvas + per-frame viewport-culled blit.
-- Adaptive pixels-per-tile per world size (4–12).
-- 9 map overlays: terrain, biome, elevation, temperature, rainfall, humidity, soil, vegetation, water.
-- River overlay drawn on top of terrain base view.
-
-### Interface (Chunk 1 + 2)
-- Start screen: world size selector + seed input.
-- HUD: size, seed, year + season, current overlay, zoom, FPS, hovered tile (terrain/elevation/effective-temp/rainfall/water-flag).
-- Overlay selector panel (top-right).
-- Loading overlay during generation.
-- New World button.
-
-## Features Still Requiring Implementation (Chunk 3+)
-- Resources (Chunk 3)
+## Features Still Requiring Implementation (Chunk 4+)
 - Population / demographics (Chunk 4)
 - Settlements / buildings (Chunk 5)
 - Economy / trade (Chunk 6)
@@ -71,70 +73,97 @@ Chunk 2 complete pending incremental tuning in future chunks.
 - Government / politics / diplomacy (Chunk 9)
 - Military (Chunk 10)
 - Culture / religion / dynasties / history log (Chunk 11)
-- Full God Mode / save-load / pause-speed UI (Chunk 12)
+- God Mode / save-load / pause-speed UI (Chunk 12)
 
 ## Known Bugs / Issues
-- Rivers can cut through mountains vertically (no "mountain priority" check).
-- Small pits (< 0.002 fill) become "flat land" rather than visible puddles — acceptable.
-- Temperature overlay shows *base* temperature, not seasonal-effective temperature (deliberate — keeps offscreen buffer static).
-- Touch / pinch input not implemented yet.
-- No pause / speed UI yet.
+- **Resource overflow on ~mountain tiles:** with 6 slots and 7 possible
+  geological resources (stone + coal + iron + copper + tin + silver + gold),
+  the last one (gold) may be skipped. Extremely rare and acceptable.
+- **Rivers can cut through mountains vertically** (Chunk 2 issue).
+- **No pause / speed UI yet** (Chunk 12).
+- **No touch / pinch input.**
+- **Extraction not yet exposed in UI** — callable via `world` API / console
+  for testing; God Mode extraction is deferred to Chunk 12.
+- Per-resource overlays show *current* quantity, not max — depleted tiles
+  appear dim until regenerated (by design).
 
 ## Performance Notes
-- Priority-flood + accumulation ≈ 500–1500 ms at 600×600 (one-time).
-- Full 600×600 generation ≈ 2–3 s (with loading screen).
-- Overlay re-render: ~10–25 ms per mode switch. Pre-allocated ImageData / tile-colour buffers reduce garbage.
-- Rendering: single drawImage per frame + viewport culling → well under 1 ms.
-- Simulation: only Environment.update runs in `_update`, negligible cost.
+- Resource storage: 200² = 0.9 MB, 400² = 3.5 MB, 600² = 7.8 MB (3 arrays).
+- Resource generation: ~50–200 ms additional at 600².
+- Full 600² generation ~2.5–3 s.
+- Overlay re-render at 600²: ~10–30 ms per mode.
+- Combined Resources overlay: ~6 slot lookups per tile, ≈ 2 M ops at 600² → ~10–20 ms.
+- Regeneration tick: O(depleted tiles), typically 0 → returns immediately.
+- Rendering unchanged (~< 1 ms/frame).
 
-## Files Created (Chunk 2)
-- `src/utils/MinHeap.js`
-- `src/environment/Seasons.js`
-- `src/environment/Environment.js`
-- `src/generation/ClimateGenerator.js`
-- `src/generation/RiverGenerator.js`
-- `src/generation/SoilGenerator.js`
-- `src/rendering/Overlay.js`
-- `src/ui/OverlayControls.js`
+## Files Created (Chunk 3)
+- `src/resources/ResourceTypes.js`
+- `src/resources/ResourceGenerator.js`
+- `src/resources/Extraction.js`
+- `src/resources/ResourceSystem.js`
+- `src/ui/TileInspector.js`
 
-## Files Modified (Chunk 2)
-- `src/world/Terrain.js` (new terrain types + rename Temperate Forest / Tropical Rainforest)
-- `src/world/Biome.js` (extended `classifyTerrain` signature; new biomes)
-- `src/world/World.js` (climate, hydrology, soil, vegetation, season fields)
-- `src/generation/BiomeGenerator.js` (passes rainfall + isLake)
-- `src/generation/WorldGenerator.js` (5-stage generation)
-- `src/rendering/TileRenderer.js` (overlay support, river layer, pre-allocated buffers)
-- `src/rendering/Renderer.js` (setOverlay delegation)
-- `src/core/Game.js` (Environment + setOverlay + environment update in loop)
-- `src/ui/HUD.js` (season, year, overlay label, richer hover)
-- `src/main.js` (wire overlay panel + reset on new world)
-- `index.html` (overlay panel markup)
-- `src/style.css` (overlay panel styling)
+## Files Modified (Chunk 3)
+- `src/world/World.js` (resource typed arrays + depletedTiles set)
+- `src/generation/WorldGenerator.js` (added ResourceGenerator stage)
+- `src/rendering/Overlay.js` (resources + per-resource overlay modes)
+- `src/ui/HUD.js` (top-2 resource display on hover)
+- `src/core/Game.js` (selection tracking, ResourceSystem tick)
+- `index.html` (optgroup + per-resource options, inspector panel)
+- `src/style.css` (inspector styling, HUD max-width)
+- `src/main.js` (populate per-resource overlay options, wire inspector)
 - `DEVELOPMENT_STATUS.md`
 
-## Files Unchanged From Chunk 1
-- `src/utils/RNG.js`, `src/utils/Noise.js`
+## Files Unchanged From Chunks 1–2
+- `src/utils/RNG.js`, `src/utils/Noise.js`, `src/utils/MinHeap.js`
 - `src/core/GameLoop.js`, `src/core/Clock.js`
-- `src/generation/TerrainGenerator.js`
-- `src/rendering/Camera.js`
+- `src/world/Terrain.js`, `src/world/Biome.js`
+- `src/generation/TerrainGenerator.js`, `ClimateGenerator.js`,
+  `RiverGenerator.js`, `BiomeGenerator.js`, `SoilGenerator.js`
+- `src/environment/Seasons.js`, `Environment.js`
+- `src/rendering/Camera.js`, `TileRenderer.js`, `Renderer.js`
+- `src/ui/OverlayControls.js`
 - `package.json`, `package-lock.json`, `public/*`
 
-## Testing Performed (Chunk 2)
-1. **Determinism** — same seed → same world (verified by inspection: all RNG uses come from forked child RNGs; no `Math.random()` in generation code).
-2. **Climate validity** — rainfall/humidity clamped to [0,1]; ocean tiles saturated to 1.0. All climate zones used.
-3. **Biome coverage** — every (elevation, temperature, rainfall, isLake) combination in the classifier returns a valid `TerrainType`. Wetland, Boreal Forest, Lake all reachable with plausible inputs.
-4. **Rivers / lakes** — priority-flood fills all depressions; flow accumulation starts at 1 per land tile, so accumulation values are strictly ≥ 1; river strength is only assigned for cells with accumulation ≥ stream threshold. Lake flag is only set for cells where fill delta > 0.002.
-5. **Elevation influence** — temperature uses `−elevation*0.4`; rainfall uses rainfall belt + coastal factor; soil fertility penalises elevation > 0.65 / 0.75.
-6. **Seasonal progression** — `Environment.update` advances `seasonProgress`; 4 stages + year increment on wrap to SPRING; `World.getEffectiveTemperature` clamps to [0,1]; seasonal sign flips across the equator.
-7. **Camera & rendering integrity** — the main renderer and camera were NOT modified structurally; only the `setOverlay` plumbing was added. Viewport culling unchanged. `TileRenderer.renderAll` reuses pre-allocated `ImageData` / buffer, avoiding GC churn on overlay switching.
-8. **Build sanity** — imports traced for consistency; no circular deps (World has no import of Environment; Overlay imports only Terrain; Environment imports only Seasons). `OverlayControls` depends on Game via reference only.
-9. **Generation order** — Terrain → Climate → Rivers → Biomes → Soil. Each stage consumes only fields produced by earlier stages.
+## Testing Performed (Chunk 3)
+1. **Determinism** — all resource RNGs forked from `WorldGenerator`'s
+   seeded parent; identical seeds produce identical resource arrays.
+2. **Distribution validity** — every resource placement check verifies
+   terrain/water/biome conditions before calling `_addResource`.
+3. **Quantity validity** — `_addResource` rejects `quantity <= 0`; all
+   generated quantities are positive; `resourceQty[i] <= resourceMaxQty[i]`
+   invariant maintained after generation.
+4. **Extraction** — `extractResource` caps extraction at available
+   quantity, decrements the slot, and adds the tile to `depletedTiles`.
+   Returns 0 for absent resources / out-of-bounds tiles.
+5. **Depletion** — a resource at 0 quantity is returned by
+   `getTileResources({includeDepleted: true})` and excluded by
+   `getTileResources({includeDepleted: false})`.
+6. **Regeneration** — `ResourceSystem.update` refills regenerable
+   resources on flagged tiles at `regenRate * elapsed * 10`; clears the
+   flag once every regenerable slot is at its max.
+7. **Overlays** — combined Resources mode: weighted colour blend; empty
+   tiles fall back to a darkened terrain colour. Per-resource modes
+   display intensity = min(1, qty / 800). Overlay re-renders correctly
+   when mode changes.
+8. **Tile inspector** — shows all data on the selected tile; updates
+   every 150 ms while a tile is selected; hides when selection cleared
+   or world absent.
+9. **Integration** — Environment update and ResourceSystem update both
+   run in `Game._update`; neither interferes with the other. World gen
+   pipeline order preserved: Terrain → Climate → Rivers → Biomes →
+   Soil → Resources.
+10. **Build sanity** — imports form a DAG (World → resources/ResourceTypes;
+    ResourceGenerator → Terrain + ResourceTypes; Overlay →
+    World/Terrain + ResourceTypes; no cycles). Vite resolves all
+    new paths.
 
 ## Next Development Tasks
-Begin **Chunk 3**: Resources
-- Resource definitions (wood, stone, clay, iron, copper, gold, coal, grain, fruit, livestock, fish).
-- Resource distribution generation (ore veins, forest biomass, fish shoals, farmland).
-- Resource quantities per tile.
-- Resource extraction (ties into settlement founding later).
-- Resource storage and inspection.
-- Resource overlays.
+Begin **Chunk 4**: Population & Demographics
+- Population data structures per settlement (aggregate).
+- Birth / death rates influenced by food, housing, climate, disease.
+- Migration between settlements.
+- Employment categories.
+- Age distribution buckets.
+- Population statistics surfaced in UI.
+- Consumption of grain / fish / freshwater from the resource system.

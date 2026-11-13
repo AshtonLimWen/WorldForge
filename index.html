@@ -43,16 +43,34 @@
       <div id="overlay-panel" class="hidden">
         <div class="panel-title">Map Overlay</div>
         <select id="overlay-select">
-          <option value="terrain">Terrain</option>
-          <option value="biome">Biome</option>
-          <option value="elevation">Elevation</option>
-          <option value="temperature">Temperature</option>
-          <option value="rainfall">Rainfall</option>
-          <option value="humidity">Humidity</option>
-          <option value="soil">Soil Fertility</option>
-          <option value="vegetation">Vegetation</option>
-          <option value="water">Water</option>
+          <optgroup label="Terrain">
+            <option value="terrain" selected>Terrain</option>
+            <option value="biome">Biome</option>
+            <option value="water">Water</option>
+          </optgroup>
+          <optgroup label="Climate">
+            <option value="elevation">Elevation</option>
+            <option value="temperature">Temperature</option>
+            <option value="rainfall">Rainfall</option>
+            <option value="humidity">Humidity</option>
+          </optgroup>
+          <optgroup label="Soil &amp; Vegetation">
+            <option value="soil">Soil Fertility</option>
+            <option value="vegetation">Vegetation</option>
+          </optgroup>
+          <optgroup label="Resources">
+            <option value="resources">Resources (All)</option>
+            <!-- Filled dynamically -->
+          </optgroup>
         </select>
+      </div>
+
+      <div id="inspector" class="hidden">
+        <div class="inspector-header">
+          <span id="inspector-title">Tile</span>
+          <button id="inspector-close">×</button>
+        </div>
+        <div id="inspector-body"></div>
       </div>
 
       <div id="loading" class="hidden"><div class="spinner"></div><div>Generating world…</div></div>

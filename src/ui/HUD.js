@@ -1,6 +1,7 @@
 import { TerrainInfo } from "../world/Terrain.js";
 import { SEASON_NAMES } from "../environment/Seasons.js";
 import { OverlayMode, OVERLAY_LABELS } from "../rendering/Overlay.js";
+import { getTileResources } from "../resources/Extraction.js";
 
 export class HUD {
   constructor(game, { infoEl, coordsEl }) {
@@ -34,7 +35,10 @@ export class HUD {
     const w = g.world;
     const seed = String(w.seed);
     const seasonStr = SEASON_NAMES[w.season] || "?";
-    const overlayStr = OVERLAY_LABELS[this._overlayMode] || this._overlayMode;
+    const overlayStr = OVERLAY_LABELS[this._overlayMode]
+      || (this._overlayMode.startsWith("resource:")
+          ? `Res: ${this._overlayMode.slice(9)}`
+          : this._overlayMode);
 
     this.infoEl.textContent =
       `${w.size}×${w.size} · Seed ${seed} · Y${w.year} ${seasonStr} · ${overlayStr} · ${g.camera.zoom.toFixed(1)}× · ${g.clock.fps.toFixed(0)}fps`;
@@ -47,8 +51,15 @@ export class HUD {
       const temp = (w.getEffectiveTemperature(m.x, m.y) * 100).toFixed(0);
       const rain = (w.rainfall[i] * 100).toFixed(0);
       const waterFlag = w.isLake[i] ? " [lake]" : w.isRiver[i] ? " [river]" : "";
+      const resources = getTileResources(w, i, { includeDepleted: false });
+      const topRes = resources
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 2)
+        .map((r) => `${r.key} ${Math.round(r.quantity)}`)
+        .join(", ");
+      const resStr = topRes ? ` · ${topRes}` : "";
       this.coordsEl.textContent =
-        `(${m.x}, ${m.y}) ${terr}${waterFlag} · e${elev} t${temp} r${rain}`;
+        `(${m.x}, ${m.y}) ${terr}${waterFlag} · e${elev} t${temp} r${rain}${resStr}`;
     } else {
       this.coordsEl.textContent = "—";
     }

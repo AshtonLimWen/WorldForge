@@ -4,6 +4,7 @@ import { Camera } from "../rendering/Camera.js";
 import { Renderer } from "../rendering/Renderer.js";
 import { WorldGenerator } from "../generation/WorldGenerator.js";
 import { Environment } from "../environment/Environment.js";
+import { ResourceSystem } from "../resources/ResourceSystem.js";
 
 export class Game {
   constructor(canvas, { onStatus } = {}) {
@@ -13,8 +14,10 @@ export class Game {
     this.clock = new Clock();
     this.world = null;
     this.environment = null;
+    this.resourceSystem = null;
     this.onStatus = onStatus || (() => {});
     this.mouseWorld = { x: 0, y: 0, inBounds: false };
+    this.selectedTile = null;
 
     this.loop = new GameLoop({
       update: (dt) => this._update(dt),
@@ -29,6 +32,8 @@ export class Game {
     this.loop.stop();
     this.world = new WorldGenerator({ size, seed }).generate();
     this.environment = new Environment(this.world);
+    this.resourceSystem = new ResourceSystem(this.world);
+    this.selectedTile = null;
 
     this.renderer.resize();
     this.renderer.setWorld(this.world, this.camera);
@@ -41,6 +46,7 @@ export class Game {
 
   stop() {
     this.loop.stop();
+    this.selectedTile = null;
   }
 
   setOverlay(mode) {
@@ -50,6 +56,7 @@ export class Game {
   _update(dt) {
     this.clock.tickSim(dt);
     if (this.environment) this.environment.update(dt);
+    if (this.resourceSystem) this.resourceSystem.update(dt);
   }
 
   _render(dt) {
@@ -62,12 +69,19 @@ export class Game {
 
     let dragging = false;
     let lastCx = 0, lastCy = 0;
+    let dragStartX = 0, dragStartY = 0;
+    let dragMoved = false;
 
     canvas.addEventListener("mousedown", (e) => {
-      if (e.button === 0 || e.button === 1 || e.button === 2) {
+      if (e.button === 0) {
         dragging = true;
-        lastCx = e.clientX;
-        lastCy = e.clientY;
+        lastCx = e.clientX; lastCy = e.clientY;
+        dragStartX = e.clientX; dragStartY = e.clientY;
+        dragMoved = false;
+      } else if (e.button === 1 || e.button === 2) {
+        dragging = true;
+        dragMoved = true;
+        lastCx = e.clientX; lastCy = e.clientY;
       }
     });
 
@@ -83,11 +97,32 @@ export class Game {
       );
 
       if (!dragging || !this.world) return;
-      const dxCss = e.clientX - lastCx;
-      const dyCss = e.clientY - lastCy;
+      const dx = e.clientX - lastCx;
+      const dy = e.clientY - lastCy;
       lastCx = e.clientX;
       lastCy = e.clientY;
-      this.camera.panScreen(dxCss * this.renderer.dpr, dyCss * this.renderer.dpr);
+      if (Math.abs(e.clientX - dragStartX) > 4 ||
+          Math.abs(e.clientY - dragStartY) > 4) {
+        dragMoved = true;
+      }
+      this.camera.panScreen(dx * this.renderer.dpr, dy * this.renderer.dpr);
+    });
+
+    canvas.addEventListener("mouseup", (e) => {
+      if (e.button === 0 && !dragMoved && this.world) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = (e.clientX - rect.left) * this.renderer.dpr;
+        const sy = (e.clientY - rect.top)  * this.renderer.dpr;
+        const w = this.camera.screenToWorld(sx, sy);
+        const tx = Math.floor(w.x);
+        const ty = Math.floor(w.y);
+        if (this.world.inBounds(tx, ty)) {
+          this.selectedTile = { x: tx, y: ty };
+        } else {
+          this.selectedTile = null;
+        }
+      }
+      dragging = false;
     });
 
     window.addEventListener("mouseup", () => { dragging = false; });
@@ -116,6 +151,7 @@ export class Game {
         case "ArrowDown":  case "s": case "S": this.camera.panScreen(0,  step); e.preventDefault(); break;
         case "+": case "=": this.camera.zoomAtScreen(cx, cy, 1.2); e.preventDefault(); break;
         case "-": case "_": this.camera.zoomAtScreen(cx, cy, 1 / 1.2); e.preventDefault(); break;
+        case "Escape": this.selectedTile = null; break;
       }
     });
   }

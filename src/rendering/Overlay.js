@@ -1,4 +1,9 @@
-import { packColorRGB, TerrainInfo, TerrainColorPacked, TerrainType } from "../world/Terrain.js";
+import { packColorRGB, TerrainColorPacked } from "../world/Terrain.js";
+import {
+  RESOURCES,
+  RESOURCES_BY_KEY,
+  MAX_RESOURCES_PER_TILE,
+} from "../resources/ResourceTypes.js";
 
 export const OverlayMode = Object.freeze({
   TERRAIN:     "terrain",
@@ -10,6 +15,7 @@ export const OverlayMode = Object.freeze({
   VEGETATION:  "vegetation",
   BIOME:       "biome",
   WATER:       "water",
+  RESOURCES:   "resources", // combined
 });
 
 export const OVERLAY_LABELS = {
@@ -22,6 +28,7 @@ export const OVERLAY_LABELS = {
   vegetation:  "Vegetation",
   biome:       "Biome",
   water:       "Water",
+  resources:   "Resources (All)",
 };
 
 // ---- Gradient LUTs ----
@@ -98,9 +105,9 @@ export const LUT_VEGETATION = buildLUT([
 // ---- Special colours ----
 
 const RIVER_COLORS = [
-  packColorRGB([ 90, 150, 205]), // streams
-  packColorRGB([ 60, 120, 185]), // minor
-  packColorRGB([ 40, 100, 170]), // major
+  packColorRGB([ 90, 150, 205]),
+  packColorRGB([ 60, 120, 185]),
+  packColorRGB([ 40, 100, 170]),
 ];
 
 const LAKE_COLOR   = packColorRGB([ 55, 105, 165]);
@@ -109,7 +116,11 @@ const DEEP_COLOR   = packColorRGB([ 24,  52,  88]);
 const COAST_COLOR  = packColorRGB([ 66, 153, 200]);
 const BEACH_COLOR  = packColorRGB([232, 216, 160]);
 const LAND_GRAY    = packColorRGB([120, 120, 120]);
-const LAND_DARK    = packColorRGB([ 60,  60,  60]);
+const EMPTY_RES_BG = packColorRGB([ 42,  46,  52]);
+
+// Pre-computed packed resource colors
+const RESOURCE_COLORS = RESOURCES.map((r) => r.color);
+const RESOURCE_COLORS_PACKED = RESOURCES.map((r) => packColorRGB(r.color));
 
 function riverColor(strength) {
   if (strength >= 220) return RIVER_COLORS[2];
@@ -118,11 +129,46 @@ function riverColor(strength) {
 }
 
 /**
- * Fill the provided per-tile colour buffer for the requested overlay mode.
- * Writes Uint32 packed colours into `out` (size = world.tileCount).
+ * Fill `out` (size = world.tileCount) with packed 32-bit colours for
+ * the requested overlay mode.
+ *
+ * Modes supported:
+ *  - All OverlayMode.* values
+ *  - "resource:<key>" for any resource key (see Resources)
  */
 export function buildTileColors(world, mode, out) {
   const n = world.tileCount;
+
+  // ---- Single-resource mode ----
+  if (mode.startsWith("resource:")) {
+    const key = mode.slice(9);
+    const def = RESOURCES_BY_KEY[key];
+    if (!def) {
+      for (let i = 0; i < n; i++) out[i] = EMPTY_RES_BG;
+      return;
+    }
+    const id = def.id;
+    const [cr, cg, cb] = RESOURCE_COLORS[id];
+    const type = world.resourceType;
+    const qty = world.resourceQty;
+    for (let i = 0; i < n; i++) {
+      const base = i * MAX_RESOURCES_PER_TILE;
+      let found = 0;
+      for (let s = 0; s < MAX_RESOURCES_PER_TILE; s++) {
+        if (type[base + s] === id + 1) { found = qty[base + s]; break; }
+      }
+      if (found > 0) {
+        const intensity = Math.min(1, found / 800);
+        const r = Math.round(30 + cr * intensity);
+        const g = Math.round(30 + cg * intensity);
+        const b = Math.round(30 + cb * intensity);
+        out[i] = packColorRGB([r, g, b]);
+      } else {
+        out[i] = EMPTY_RES_BG;
+      }
+    }
+    return;
+  }
 
   switch (mode) {
     case OverlayMode.TERRAIN: {
@@ -192,10 +238,48 @@ export function buildTileColors(world, mode, out) {
       break;
     }
 
+    case OverlayMode.RESOURCES: {
+      // Blend all resources present on a tile weighted by quantity.
+      // Empty tiles fall back to a very dark variant of the terrain colour.
+      const { terrain, resourceType, resourceQty } = world;
+      const baseTerrain = TerrainColorPacked;
+      for (let i = 0; i < n; i++) {
+        const base = i * MAX_RESOURCES_PER_TILE;
+        let totalQty = 0, r = 0, g = 0, b = 0;
+        for (let s = 0; s < MAX_RESOURCES_PER_TILE; s++) {
+          const t = resourceType[base + s];
+          if (t === 0) continue;
+          const q = resourceQty[base + s];
+          if (q <= 0) continue;
+          const c = RESOURCE_COLORS[t - 1];
+          totalQty += q;
+          r += c[0] * q;
+          g += c[1] * q;
+          b += c[2] * q;
+        }
+        if (totalQty === 0) {
+          // Darken terrain colour for "no resources" tiles
+          const packed = baseTerrain[terrain[i]];
+          const r0 = (packed & 0xFF) * 0.35;
+          const g0 = ((packed >> 8) & 0xFF) * 0.35;
+          const b0 = ((packed >> 16) & 0xFF) * 0.35;
+          out[i] = packColorRGB([r0 | 0, g0 | 0, b0 | 0]);
+        } else {
+          out[i] = packColorRGB([
+            Math.round(r / totalQty),
+            Math.round(g / totalQty),
+            Math.round(b / totalQty),
+          ]);
+        }
+      }
+      break;
+    }
+
     default: {
-      // Fallback: terrain
       const { terrain } = world;
       for (let i = 0; i < n; i++) out[i] = TerrainColorPacked[terrain[i]];
     }
   }
 }
+
+void RESOURCE_COLORS_PACKED; // reserved for future per-resource styling

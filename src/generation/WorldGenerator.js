@@ -5,6 +5,7 @@ import { ClimateGenerator } from "./ClimateGenerator.js";
 import { RiverGenerator } from "./RiverGenerator.js";
 import { BiomeGenerator } from "./BiomeGenerator.js";
 import { SoilGenerator } from "./SoilGenerator.js";
+import { ResourceGenerator } from "../resources/ResourceGenerator.js";
 
 /**
  * Orchestrates a full world generation pass.
@@ -20,20 +21,23 @@ export class WorldGenerator {
   generate() {
     const world = new World(this.size, this.originalSeed);
 
-    // 1. Terrain elevation / temperature / moisture
+    // 1. Elevation / temperature / moisture
     new TerrainGenerator(world, this.rng.fork()).generate();
 
-    // 2. Climate (rainfall, humidity, zone) — needs elevation
+    // 2. Climate (rainfall, humidity, zones)
     new ClimateGenerator(world, this.rng.fork()).generate();
 
-    // 3. Rivers & lakes — needs elevation only
+    // 3. Rivers & lakes
     new RiverGenerator(world).generate();
 
-    // 4. Biomes — needs elevation, temperature, rainfall, lake flags
+    // 4. Biomes (uses rainfall & lake flags)
     new BiomeGenerator(world).generate();
 
-    // 5. Soil & vegetation — needs everything above
+    // 5. Soil & vegetation
     new SoilGenerator(world).generate();
+
+    // 6. Resources (uses everything above)
+    new ResourceGenerator(world, this.rng.fork()).generate();
 
     return world;
   }
